@@ -7,31 +7,30 @@ namespace Go\VirtualFileSystem\Node;
 /**
  * Directory node: an ordered map of child names to nodes.
  */
-final class Directory extends Node
+final class Directory extends AbstractNode
 {
+    public NodeType $type {
+        get => NodeType::Directory;
+    }
+
+    public int $size {
+        get => 4096;
+    }
+
     /**
-     * @var array<string, Node>
+     * @var array<string, Node> Child nodes keyed by entry name
      */
-    private array $children = [];
+    public private(set) array $children = [];
 
-    public function fileType(): int
-    {
-        return 0o040000;
+    public bool $isEmpty {
+        get => $this->children === [];
     }
 
-    public function size(): int
-    {
-        return 4096;
-    }
-
-    public function child(string $name): ?Node
-    {
-        return $this->children[$name] ?? null;
-    }
-
-    public function hasChild(string $name): bool
-    {
-        return isset($this->children[$name]);
+    /**
+     * POSIX-style link count: "." and ".." plus one per subdirectory.
+     */
+    public int $linkCount {
+        get => 2 + count(array_filter($this->children, static fn (Node $child): bool => $child instanceof self));
     }
 
     public function addChild(string $name, Node $node): void
@@ -44,33 +43,5 @@ final class Directory extends Node
     {
         unset($this->children[$name]);
         $this->markModified();
-    }
-
-    /**
-     * @return array<string, Node>
-     */
-    public function children(): array
-    {
-        return $this->children;
-    }
-
-    public function isEmpty(): bool
-    {
-        return $this->children === [];
-    }
-
-    /**
-     * POSIX-style link count: "." and ".." plus one per subdirectory.
-     */
-    public function linkCount(): int
-    {
-        $count = 2;
-        foreach ($this->children as $child) {
-            if ($child instanceof self) {
-                $count++;
-            }
-        }
-
-        return $count;
     }
 }

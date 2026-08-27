@@ -10,29 +10,22 @@ namespace Go\VirtualFileSystem\Node;
  * The target may be absolute ("/etc/config") or relative to the
  * directory containing the link ("../config").
  */
-final class SymbolicLink extends Node
+final class SymbolicLink extends AbstractNode
 {
+    public NodeType $type {
+        get => NodeType::SymbolicLink;
+    }
+
+    public int $size {
+        get => strlen($this->target);
+    }
+
     public function __construct(
-        private readonly string $target,
+        public readonly string $target,
         int $permissions,
         int $uid,
         int $gid,
     ) {
         parent::__construct($permissions, $uid, $gid);
-    }
-
-    public function fileType(): int
-    {
-        return 0o120000;
-    }
-
-    public function size(): int
-    {
-        return strlen($this->target);
-    }
-
-    public function target(): string
-    {
-        return $this->target;
     }
 }

@@ -12,8 +12,8 @@ final class MountTest extends VfsTestCase
     public function testMountRegistersStreamWrapper(): void
     {
         self::assertContains('vfs', stream_get_wrappers());
-        self::assertTrue($this->fs->isMounted());
-        self::assertSame('vfs', $this->fs->scheme());
+        self::assertTrue($this->fs->isMounted);
+        self::assertSame('vfs', $this->fs->scheme);
         self::assertSame($this->fs, FileSystem::get('vfs'));
     }
 
@@ -22,7 +22,7 @@ final class MountTest extends VfsTestCase
         $this->fs->unmount();
 
         self::assertNotContains('vfs', stream_get_wrappers());
-        self::assertFalse($this->fs->isMounted());
+        self::assertFalse($this->fs->isMounted);
         self::assertNull(FileSystem::get('vfs'));
     }
 
@@ -31,7 +31,7 @@ final class MountTest extends VfsTestCase
         $this->fs->unmount();
         $this->fs->unmount();
 
-        self::assertFalse($this->fs->isMounted());
+        self::assertFalse($this->fs->isMounted);
     }
 
     public function testTreeSurvivesUnmount(): void
@@ -80,7 +80,7 @@ final class MountTest extends VfsTestCase
         self::assertNotSame($this->fs->device, $other->device);
 
         $other->unmount();
-        self::assertTrue($this->fs->isMounted());
+        self::assertTrue($this->fs->isMounted);
     }
 
     public function testPathHelperBuildsUrls(): void

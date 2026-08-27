@@ -7,6 +7,7 @@ namespace Go\VirtualFileSystem\Tests;
 use Go\VirtualFileSystem\Exception\OperationException;
 use Go\VirtualFileSystem\Node\Directory;
 use Go\VirtualFileSystem\Node\File;
+use Go\VirtualFileSystem\Node\Node;
 use Go\VirtualFileSystem\Node\SymbolicLink;
 
 final class ApiTest extends VfsTestCase
@@ -58,6 +59,7 @@ final class ApiTest extends VfsTestCase
         $this->fs->createFile('/d/f.txt', 'x');
         $this->fs->createSymlink('/d/l', '/d/f.txt');
 
+        self::assertInstanceOf(Node::class, $this->fs->find('/d'));
         self::assertInstanceOf(Directory::class, $this->fs->find('/d'));
         self::assertInstanceOf(File::class, $this->fs->find('/d/f.txt'));
         self::assertInstanceOf(SymbolicLink::class, $this->fs->find('/d/l', followFinalLink: false));
@@ -67,28 +69,28 @@ final class ApiTest extends VfsTestCase
 
     public function testRootIsAlwaysAvailable(): void
     {
-        self::assertInstanceOf(Directory::class, $this->fs->root());
-        self::assertSame($this->fs->root(), $this->fs->find('/'));
-        self::assertSame($this->fs->root(), $this->fs->createDirectory('/'));
+        self::assertInstanceOf(Directory::class, $this->fs->root);
+        self::assertSame($this->fs->root, $this->fs->find('/'));
+        self::assertSame($this->fs->root, $this->fs->createDirectory('/'));
     }
 
     public function testDefaultOwnershipComesFromProcess(): void
     {
         $expectedUid = function_exists('posix_getuid') ? posix_getuid() : 0;
 
-        self::assertSame($expectedUid, $this->fs->user());
+        self::assertSame($expectedUid, $this->fs->user);
 
         $file = $this->fs->createFile('/owned.txt');
-        self::assertSame($expectedUid, $file->uid());
+        self::assertSame($expectedUid, $file->uid);
     }
 
     public function testNodeContentAccessors(): void
     {
         $file = $this->fs->createFile('/direct.txt', 'initial');
-        $file->setContent('replaced');
+        $file->content = 'replaced';
 
         self::assertSame('replaced', file_get_contents('vfs://direct.txt'));
-        self::assertSame('replaced', $file->content());
-        self::assertSame(8, $file->size());
+        self::assertSame('replaced', $file->content);
+        self::assertSame(8, $file->size);
     }
 }

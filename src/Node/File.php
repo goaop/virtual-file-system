@@ -9,11 +9,28 @@ namespace Go\VirtualFileSystem\Node;
  *
  * The content lives on the node itself, so every open handle observes
  * writes made through any other handle — the same guarantee a real
- * filesystem gives for a shared inode.
+ * filesystem gives for a shared inode. The set hook on $content keeps
+ * the modification time up to date on every write, wherever it comes from.
  */
-final class File extends Node
+final class File extends AbstractNode
 {
-    private string $content = '';
+    public NodeType $type {
+        get => NodeType::File;
+    }
+
+    /**
+     * Raw file content; assigning marks the file as modified.
+     */
+    public string $content = '' {
+        set {
+            $this->content = $value;
+            $this->markModified();
+        }
+    }
+
+    public int $size {
+        get => strlen($this->content);
+    }
 
     private ?int $exclusiveLockOwner = null;
 
@@ -21,27 +38,6 @@ final class File extends Node
      * @var array<int, true> Handle ids currently holding a shared lock
      */
     private array $sharedLockOwners = [];
-
-    public function fileType(): int
-    {
-        return 0o100000;
-    }
-
-    public function size(): int
-    {
-        return strlen($this->content);
-    }
-
-    public function content(): string
-    {
-        return $this->content;
-    }
-
-    public function setContent(string $content): void
-    {
-        $this->content = $content;
-        $this->markModified();
-    }
 
     /**
      * Reads up to $count bytes starting at $offset.
@@ -63,12 +59,11 @@ final class File extends Node
      */
     public function write(int $offset, string $data): int
     {
-        $currentSize = strlen($this->content);
-        if ($offset > $currentSize) {
-            $this->content .= str_repeat("\0", $offset - $currentSize);
+        $content = $this->content;
+        if ($offset > strlen($content)) {
+            $content .= str_repeat("\0", $offset - strlen($content));
         }
-        $this->content = substr_replace($this->content, $data, $offset, strlen($data));
-        $this->markModified();
+        $this->content = substr_replace($content, $data, $offset, strlen($data));
 
         return strlen($data);
     }
@@ -79,12 +74,11 @@ final class File extends Node
     public function truncate(int $size): void
     {
         $currentSize = strlen($this->content);
-        if ($size < $currentSize) {
-            $this->content = substr($this->content, 0, $size);
-        } elseif ($size > $currentSize) {
-            $this->content .= str_repeat("\0", $size - $currentSize);
-        }
-        $this->markModified();
+        $this->content = match (true) {
+            $size < $currentSize => substr($this->content, 0, $size),
+            $size > $currentSize => $this->content . str_repeat("\0", $size - $currentSize),
+            default              => $this->content,
+        };
     }
 
     /**
@@ -108,12 +102,12 @@ final class File extends Node
      */
     public function lockExclusive(int $ownerId): bool
     {
-        if ($this->exclusiveLockOwner !== null && $this->exclusiveLockOwner !== $ownerId) {
-            return false;
-        }
-        $otherSharedOwners = $this->sharedLockOwners;
-        unset($otherSharedOwners[$ownerId]);
-        if ($otherSharedOwners !== []) {
+        $lockedByOthers = ($this->exclusiveLockOwner !== null && $this->exclusiveLockOwner !== $ownerId)
+            || array_any(
+                array_keys($this->sharedLockOwners),
+                static fn (int $sharedOwnerId): bool => $sharedOwnerId !== $ownerId,
+            );
+        if ($lockedByOthers) {
             return false;
         }
         unset($this->sharedLockOwners[$ownerId]);

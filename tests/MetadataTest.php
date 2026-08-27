@@ -27,7 +27,7 @@ final class MetadataTest extends VfsTestCase
 
     public function testChownAsRootChangesOwner(): void
     {
-        $this->fs->setUser(0);
+        $this->fs->user = 0;
         file_put_contents('vfs://owned.txt', 'x');
 
         self::assertTrue(chown('vfs://owned.txt', 1234));
@@ -38,7 +38,7 @@ final class MetadataTest extends VfsTestCase
 
     public function testChgrpAsRootChangesGroup(): void
     {
-        $this->fs->setUser(0);
+        $this->fs->user = 0;
         file_put_contents('vfs://grouped.txt', 'x');
 
         self::assertTrue(chgrp('vfs://grouped.txt', 5678));
@@ -50,7 +50,7 @@ final class MetadataTest extends VfsTestCase
     public function testChownAsRegularUserIsDenied(): void
     {
         file_put_contents('vfs://protected.txt', 'x');
-        $this->fs->setUser(1000);
+        $this->fs->user = 1000;
 
         [$result, $warnings] = self::capture(static fn (): bool => chown('vfs://protected.txt', 1234));
 
@@ -62,7 +62,7 @@ final class MetadataTest extends VfsTestCase
     public function testChgrpAsRegularUserIsDenied(): void
     {
         file_put_contents('vfs://protected.txt', 'x');
-        $this->fs->setUser(1000);
+        $this->fs->user = 1000;
 
         [$result, $warnings] = self::capture(static fn (): bool => chgrp('vfs://protected.txt', 42));
 
@@ -77,7 +77,7 @@ final class MetadataTest extends VfsTestCase
         $node = $this->fs->find('/foreign.txt');
         self::assertNotNull($node);
         $node->chown(2000);
-        $this->fs->setUser(1000);
+        $this->fs->user = 1000;
 
         [$result, $warnings] = self::capture(static fn (): bool => chmod('vfs://foreign.txt', 0o777));
 
@@ -92,7 +92,7 @@ final class MetadataTest extends VfsTestCase
         $node = $this->fs->find('/mine.txt');
         self::assertNotNull($node);
         $node->chown(1000);
-        $this->fs->setUser(1000);
+        $this->fs->user = 1000;
 
         self::assertTrue(chmod('vfs://mine.txt', 0o640));
         clearstatcache();
@@ -105,7 +105,7 @@ final class MetadataTest extends VfsTestCase
         if (!function_exists('posix_getpwnam') || posix_getpwnam('root') === false) {
             self::markTestSkipped('POSIX extension with a "root" user is required');
         }
-        $this->fs->setUser(0);
+        $this->fs->user = 0;
         file_put_contents('vfs://byname.txt', 'x');
 
         self::assertTrue(chown('vfs://byname.txt', 'root'));
