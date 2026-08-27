@@ -12,7 +12,7 @@ final class PermissionsTest extends VfsTestCase
         $node = $this->fs->find('/secret.txt');
         self::assertNotNull($node);
         $node->chown(2000);
-        $this->fs->setUser(1000);
+        $this->fs->user = 1000;
 
         [$handle, $warnings] = self::capture(static fn (): mixed => fopen('vfs://secret.txt', 'r'));
 
@@ -24,7 +24,7 @@ final class PermissionsTest extends VfsTestCase
     public function testUnwritableFileCannotBeOpenedForWriting(): void
     {
         $this->fs->createFile('/readonly.txt', 'look but do not touch', 0o444);
-        $this->fs->setUser(1000);
+        $this->fs->user = 1000;
 
         [$handle, $warnings] = self::capture(static fn (): mixed => fopen('vfs://readonly.txt', 'w'));
 
@@ -38,7 +38,7 @@ final class PermissionsTest extends VfsTestCase
     public function testCannotCreateFileInReadOnlyDirectory(): void
     {
         $this->fs->createDirectory('/locked', 0o555);
-        $this->fs->setUser(1000);
+        $this->fs->user = 1000;
 
         [$result, $warnings] = self::capture(static fn (): mixed => file_put_contents('vfs://locked/new.txt', 'x'));
 
@@ -54,7 +54,7 @@ final class PermissionsTest extends VfsTestCase
         $node = $this->fs->find('/locked');
         self::assertNotNull($node);
         $node->chmod(0o555);
-        $this->fs->setUser(1000);
+        $this->fs->user = 1000;
 
         [$result, $warnings] = self::capture(static fn (): bool => unlink('vfs://locked/keep.txt'));
 
@@ -67,7 +67,7 @@ final class PermissionsTest extends VfsTestCase
     public function testCannotMkdirInReadOnlyDirectory(): void
     {
         $this->fs->createDirectory('/locked', 0o555);
-        $this->fs->setUser(1000);
+        $this->fs->user = 1000;
 
         [$result, $warnings] = self::capture(static fn (): bool => mkdir('vfs://locked/sub'));
 
@@ -79,7 +79,7 @@ final class PermissionsTest extends VfsTestCase
     public function testUnreadableDirectoryCannotBeListed(): void
     {
         $this->fs->createDirectory('/private', 0o311);
-        $this->fs->setUser(1000);
+        $this->fs->user = 1000;
 
         [$result, $warnings] = self::capture(static fn (): mixed => scandir('vfs://private'));
 
@@ -91,7 +91,7 @@ final class PermissionsTest extends VfsTestCase
     public function testRootBypassesPermissionChecks(): void
     {
         $this->fs->createFile('/secret.txt', 'classified', 0o000);
-        $this->fs->setUser(0);
+        $this->fs->user = 0;
 
         self::assertSame('classified', file_get_contents('vfs://secret.txt'));
     }
@@ -103,12 +103,12 @@ final class PermissionsTest extends VfsTestCase
         self::assertNotNull($node);
         $node->chown(2000);
         $node->chgrp(3000);
-        $this->fs->setUser(1000);
-        $this->fs->setGroup(3000);
+        $this->fs->user = 1000;
+        $this->fs->group = 3000;
 
         self::assertSame('shared', file_get_contents('vfs://group.txt'));
 
-        $this->fs->setGroup(4000);
+        $this->fs->group = 4000;
         [$handle, $warnings] = self::capture(static fn (): mixed => fopen('vfs://group.txt', 'r'));
         self::assertFalse($handle);
         self::assertNotEmpty($warnings);
@@ -121,7 +121,7 @@ final class PermissionsTest extends VfsTestCase
         $node = $this->fs->find('/locked');
         self::assertNotNull($node);
         $node->chmod(0o555);
-        $this->fs->setUser(1000);
+        $this->fs->user = 1000;
 
         [$result, $warnings] = self::capture(static fn (): bool => rename('vfs://locked/file.txt', 'vfs://file.txt'));
 

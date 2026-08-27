@@ -119,7 +119,7 @@ $fs = FileSystem::mount();
 $fs->createFile('/protected.txt', 'top secret', permissions: 0o600);
 $fs->find('/protected.txt')?->chown(0);   // owned by root
 
-$fs->setUser(1000);                       // now pretend we are an ordinary user
+$fs->user = 1000;                         // now pretend we are an ordinary user
 
 fopen('vfs://protected.txt', 'r');        // false + "Permission denied" warning
 ```
@@ -128,14 +128,14 @@ fopen('vfs://protected.txt', 'r');        // false + "Permission denied" warning
 
 ```php
 $fs = FileSystem::mount();
-$fs->setQuota(1024);                      // a whole kilobyte of disk space
+$fs->quota = 1024;                        // a whole kilobyte of disk space
 
 $written = file_put_contents('vfs://big.log', str_repeat('x', 4096));
 // => 1024 — short write, exactly like a full partition
 
-$fs->availableSpace();                    // 0
+$fs->availableSpace;                      // 0
 unlink('vfs://big.log');
-$fs->availableSpace();                    // 1024 — space reclaimed
+$fs->availableSpace;                      // 1024 — space reclaimed
 ```
 
 ### Locks
@@ -175,13 +175,33 @@ FileSystem::unmountAll();
 | `$fs->createDirectory(string $path, int $permissions = 0o777, bool $recursive = false): Directory` | Seed a directory |
 | `$fs->createSymlink(string $path, string $target): SymbolicLink` | Create a symbolic link |
 | `$fs->find(string $path, bool $followFinalLink = true): ?Node` | Inspect any node (lstat-style with `false`) |
-| `$fs->root(): Directory` | The root directory node |
-| `$fs->setQuota(int $bytes): void` / `quota()` / `usedSpace()` / `availableSpace()` | Disk-space simulation |
-| `$fs->setUser(int $uid)` / `setGroup(int $gid)` / `user()` / `group()` | Identity used for permission checks |
+| `$fs->root` | The root `Directory` node (readonly) |
+| `$fs->scheme` / `$fs->device` / `$fs->isMounted` | Mount identity (readonly) |
+| `$fs->quota = $bytes` / `$fs->usedSpace` / `$fs->availableSpace` | Disk-space simulation (`-1` = unlimited) |
+| `$fs->user = $uid` / `$fs->group = $gid` | Identity used for permission checks |
 
-Nodes (`File`, `Directory`, `SymbolicLink`) expose metadata accessors —
-`chmod()`, `chown()`, `chgrp()`, `touch()`, `size()`, `content()`,
-`setContent()`, `children()`, `target()` — for direct fixture surgery.
+Nodes (`File`, `Directory`, `SymbolicLink`) expose their metadata as typed
+properties — `$size`, `$mode`, `$permissions`, `$uid`, `$gid`, `$type`,
+`$content`, `$children`, `$target` — plus intention-revealing methods
+(`chmod()`, `chown()`, `chgrp()`, `touch()`) for direct fixture surgery.
+
+## Built on modern PHP
+
+The codebase is a showcase of PHP 8.4+ done right:
+
+- **Property hooks** — `File::$content` keeps `mtime` honest on every
+  assignment; `FileSystem::$quota` validates itself; `$usedSpace`,
+  `$availableSpace`, `$mode` and `$size` are computed, virtual properties
+- **Abstract hooked properties** — `Node` declares `abstract public NodeType $type { get; }`
+- **Asymmetric visibility** — metadata reads like `$node->uid` are public
+  while writes stay guarded (`public private(set)`)
+- **Readonly classes & promoted constructors** — the fopen mode parser is an
+  immutable `OpenMode` value object built with named arguments
+- **Backed enums** — POSIX file type bits live in a `NodeType` enum
+- **`array_any()`, first-class `match`, named arguments** throughout
+
+No annotations pretending to be types, no magic `__get` — everything is
+natively typed and enforced by the engine itself.
 
 ## Known limitations
 

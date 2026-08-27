@@ -12,27 +12,20 @@ namespace Go\VirtualFileSystem\Node;
  */
 final class SymbolicLink extends Node
 {
+    public NodeType $type {
+        get => NodeType::SymbolicLink;
+    }
+
+    public int $size {
+        get => strlen($this->target);
+    }
+
     public function __construct(
-        private readonly string $target,
+        public readonly string $target,
         int $permissions,
         int $uid,
         int $gid,
     ) {
         parent::__construct($permissions, $uid, $gid);
-    }
-
-    public function fileType(): int
-    {
-        return 0o120000;
-    }
-
-    public function size(): int
-    {
-        return strlen($this->target);
-    }
-
-    public function target(): string
-    {
-        return $this->target;
     }
 }

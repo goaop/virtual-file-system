@@ -35,8 +35,8 @@ final class StatTest extends VfsTestCase
         self::assertSame(10, $stat['size']);
         self::assertSame(0o100000, $stat['mode'] & 0o170000);
         self::assertSame($this->fs->device, $stat['dev']);
-        self::assertSame($this->fs->user(), $stat['uid']);
-        self::assertSame($this->fs->group(), $stat['gid']);
+        self::assertSame($this->fs->user, $stat['uid']);
+        self::assertSame($this->fs->group, $stat['gid']);
         self::assertGreaterThan(0, $stat['ino']);
         self::assertSame(1, $stat['nlink']);
         self::assertSame($stat[7], $stat['size']);

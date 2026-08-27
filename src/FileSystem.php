@@ -45,20 +45,54 @@ final class FileSystem
      */
     public readonly int $device;
 
-    private readonly Directory $root;
+    public readonly Directory $root;
 
-    private int $uid;
+    /**
+     * User id used for permission checks. Defaults to the real process uid;
+     * assign a non-zero uid to let a root-run test suite exercise
+     * "Permission denied" paths.
+     */
+    public int $user;
 
-    private int $gid;
+    /**
+     * Group id used for permission checks.
+     */
+    public int $group;
 
-    private int $quota = -1;
+    /**
+     * Total content bytes the filesystem may hold; -1 lifts the limit.
+     * Writes beyond the quota behave like a full disk: short writes and
+     * "No space left on device" warnings.
+     */
+    public int $quota = -1 {
+        set => max(-1, $value);
+    }
 
-    private function __construct(private readonly string $scheme)
-    {
+    /**
+     * Total number of content bytes currently stored in regular files.
+     */
+    public int $usedSpace {
+        get => $this->directoryUsage($this->root);
+    }
+
+    /**
+     * Bytes still writable before the quota is exhausted (PHP_INT_MAX when unlimited).
+     */
+    public int $availableSpace {
+        get => $this->quota < 0 ? PHP_INT_MAX : max(0, $this->quota - $this->usedSpace);
+    }
+
+    public bool $isMounted {
+        get => (self::$mounted[$this->scheme] ?? null) === $this;
+    }
+
+    private function __construct(
+        public readonly string $scheme,
+    ) {
         $this->device = self::$nextDevice++;
-        $this->uid    = function_exists('posix_getuid') ? posix_getuid() : 0;
-        $this->gid    = function_exists('posix_getgid') ? posix_getgid() : 0;
-        $this->root   = new Directory(0o755, $this->uid, $this->gid);
+        $this->user   = function_exists('posix_getuid') ? posix_getuid() : 0;
+        $this->group  = function_exists('posix_getgid') ? posix_getgid() : 0;
+        $this->root   = new Directory(0o755, $this->user, $this->group);
     }
 
     /**
@@ -94,7 +128,7 @@ final class FileSystem
      */
     public function unmount(): void
     {
-        if ((self::$mounted[$this->scheme] ?? null) !== $this) {
+        if (!$this->isMounted) {
             return;
         }
         unset(self::$mounted[$this->scheme]);
@@ -106,9 +140,7 @@ final class FileSystem
      */
     public static function unmountAll(): void
     {
-        foreach (self::$mounted as $fileSystem) {
-            $fileSystem->unmount();
-        }
+        array_map(static fn (self $fileSystem) => $fileSystem->unmount(), self::$mounted);
     }
 
     /**
@@ -119,27 +151,12 @@ final class FileSystem
         return self::$mounted[$scheme] ?? null;
     }
 
-    public function isMounted(): bool
-    {
-        return (self::$mounted[$this->scheme] ?? null) === $this;
-    }
-
-    public function scheme(): string
-    {
-        return $this->scheme;
-    }
-
     /**
      * Builds a full stream URL for a virtual path: path('/a/b') => "vfs://a/b".
      */
     public function path(string $path = '/'): string
     {
         return $this->scheme . '://' . ltrim(Path::normalize($path), '/');
-    }
-
-    public function root(): Directory
-    {
-        return $this->root;
     }
 
     /**
@@ -181,7 +198,7 @@ final class FileSystem
             if ($existing !== null) {
                 throw new OperationException(sprintf('"%s" already exists and is not a directory', $path));
             }
-            $directory = new Directory($permissions, $this->uid, $this->gid);
+            $directory = new Directory($permissions, $this->user, $this->group);
             $parent->addChild($name, $directory);
 
             return $directory;
@@ -191,7 +208,7 @@ final class FileSystem
         foreach ($segments as $segment) {
             $child = $current->child($segment);
             if ($child === null) {
-                $child = new Directory($permissions, $this->uid, $this->gid);
+                $child = new Directory($permissions, $this->user, $this->group);
                 $current->addChild($segment, $child);
             }
             if (!$child instanceof Directory) {
@@ -222,8 +239,8 @@ final class FileSystem
             throw new OperationException(sprintf('"%s" already exists and is a directory', $path));
         }
 
-        $file = new File($permissions, $this->uid, $this->gid);
-        $file->setContent($content);
+        $file          = new File($permissions, $this->user, $this->group);
+        $file->content = $content;
         $parent->addChild($name, $file);
 
         return $file;
@@ -246,88 +263,23 @@ final class FileSystem
             throw new OperationException(sprintf('Cannot create symbolic link: "%s" already exists', $path));
         }
 
-        $link = new SymbolicLink($target, 0o777, $this->uid, $this->gid);
+        $link = new SymbolicLink($target, 0o777, $this->user, $this->group);
         $parent->addChild($name, $link);
 
         return $link;
     }
 
-    /**
-     * Limits the total number of content bytes the filesystem may hold.
-     *
-     * Writes beyond the quota behave like a full disk: short writes and
-     * "No space left on device" warnings. Pass -1 to lift the limit.
-     */
-    public function setQuota(int $bytes): void
-    {
-        $this->quota = max(-1, $bytes);
-    }
-
-    public function quota(): int
-    {
-        return $this->quota;
-    }
-
-    /**
-     * Total number of content bytes currently stored in regular files.
-     */
-    public function usedSpace(): int
-    {
-        return $this->directoryUsage($this->root);
-    }
-
-    /**
-     * Bytes still writable before the quota is exhausted (PHP_INT_MAX when unlimited).
-     */
-    public function availableSpace(): int
-    {
-        if ($this->quota < 0) {
-            return PHP_INT_MAX;
-        }
-
-        return max(0, $this->quota - $this->usedSpace());
-    }
-
-    /**
-     * Overrides the user id used for permission checks (defaults to the real
-     * process uid). Setting a non-zero uid lets a root-run test suite exercise
-     * "Permission denied" paths.
-     */
-    public function setUser(int $uid): void
-    {
-        $this->uid = $uid;
-    }
-
-    public function user(): int
-    {
-        return $this->uid;
-    }
-
-    /**
-     * Overrides the group id used for permission checks.
-     */
-    public function setGroup(int $gid): void
-    {
-        $this->gid = $gid;
-    }
-
-    public function group(): int
-    {
-        return $this->gid;
-    }
-
     private function directoryUsage(Directory $directory): int
     {
-        $bytes = 0;
-        foreach ($directory->children() as $child) {
-            if ($child instanceof Directory) {
-                $bytes += $this->directoryUsage($child);
-            } elseif ($child instanceof File) {
-                $bytes += $child->size();
-            }
-        }
-
-        return $bytes;
+        return array_reduce(
+            $directory->children,
+            fn (int $bytes, Node $child): int => $bytes + match (true) {
+                $child instanceof Directory => $this->directoryUsage($child),
+                $child instanceof File      => $child->size,
+                default                     => 0,
+            },
+            0,
+        );
     }
 
     /**
@@ -351,7 +303,7 @@ final class FileSystem
             }
             if ($child instanceof SymbolicLink && ($index < $lastIndex || $followFinalLink)) {
                 $parentPath = '/' . implode('/', array_slice($segments, 0, $index));
-                $targetPath = Path::resolveTarget($parentPath, $child->target());
+                $targetPath = Path::resolveTarget($parentPath, $child->target);
                 $rebased    = [...Path::segments($targetPath), ...array_slice($segments, $index + 1)];
 
                 return $this->resolveSegments($rebased, $followFinalLink, $depth + 1);

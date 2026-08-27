@@ -67,28 +67,28 @@ final class ApiTest extends VfsTestCase
 
     public function testRootIsAlwaysAvailable(): void
     {
-        self::assertInstanceOf(Directory::class, $this->fs->root());
-        self::assertSame($this->fs->root(), $this->fs->find('/'));
-        self::assertSame($this->fs->root(), $this->fs->createDirectory('/'));
+        self::assertInstanceOf(Directory::class, $this->fs->root);
+        self::assertSame($this->fs->root, $this->fs->find('/'));
+        self::assertSame($this->fs->root, $this->fs->createDirectory('/'));
     }
 
     public function testDefaultOwnershipComesFromProcess(): void
     {
         $expectedUid = function_exists('posix_getuid') ? posix_getuid() : 0;
 
-        self::assertSame($expectedUid, $this->fs->user());
+        self::assertSame($expectedUid, $this->fs->user);
 
         $file = $this->fs->createFile('/owned.txt');
-        self::assertSame($expectedUid, $file->uid());
+        self::assertSame($expectedUid, $file->uid);
     }
 
     public function testNodeContentAccessors(): void
     {
         $file = $this->fs->createFile('/direct.txt', 'initial');
-        $file->setContent('replaced');
+        $file->content = 'replaced';
 
         self::assertSame('replaced', file_get_contents('vfs://direct.txt'));
-        self::assertSame('replaced', $file->content());
-        self::assertSame(8, $file->size());
+        self::assertSame('replaced', $file->content);
+        self::assertSame(8, $file->size);
     }
 }

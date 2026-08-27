@@ -9,19 +9,28 @@ namespace Go\VirtualFileSystem\Node;
  */
 final class Directory extends Node
 {
-    /**
-     * @var array<string, Node>
-     */
-    private array $children = [];
-
-    public function fileType(): int
-    {
-        return 0o040000;
+    public NodeType $type {
+        get => NodeType::Directory;
     }
 
-    public function size(): int
-    {
-        return 4096;
+    public int $size {
+        get => 4096;
+    }
+
+    /**
+     * @var array<string, Node> Child nodes keyed by entry name
+     */
+    public private(set) array $children = [];
+
+    public bool $isEmpty {
+        get => $this->children === [];
+    }
+
+    /**
+     * POSIX-style link count: "." and ".." plus one per subdirectory.
+     */
+    public int $linkCount {
+        get => 2 + count(array_filter($this->children, static fn (Node $child): bool => $child instanceof self));
     }
 
     public function child(string $name): ?Node
@@ -44,33 +53,5 @@ final class Directory extends Node
     {
         unset($this->children[$name]);
         $this->markModified();
-    }
-
-    /**
-     * @return array<string, Node>
-     */
-    public function children(): array
-    {
-        return $this->children;
-    }
-
-    public function isEmpty(): bool
-    {
-        return $this->children === [];
-    }
-
-    /**
-     * POSIX-style link count: "." and ".." plus one per subdirectory.
-     */
-    public function linkCount(): int
-    {
-        $count = 2;
-        foreach ($this->children as $child) {
-            if ($child instanceof self) {
-                $count++;
-            }
-        }
-
-        return $count;
     }
 }

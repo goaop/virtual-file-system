@@ -8,7 +8,10 @@ namespace Go\VirtualFileSystem\Node;
  * Base class for every inode of the virtual filesystem.
  *
  * Tracks POSIX-like metadata: a unique inode number, permission bits,
- * owner/group ids and access/modification/change timestamps.
+ * owner/group ids and access/modification/change timestamps. Metadata is
+ * exposed as read-only properties (asymmetric visibility); mutations go
+ * through the intention-revealing methods — chmod(), chown(), touch() —
+ * which keep the change time honest.
  */
 abstract class Node
 {
@@ -16,22 +19,44 @@ abstract class Node
 
     public readonly int $inode;
 
-    private int $permissions;
+    /**
+     * POSIX file type of this node (S_IFREG, S_IFDIR or S_IFLNK).
+     */
+    abstract public NodeType $type { get; }
 
-    private int $uid;
+    /**
+     * Apparent size of the node in bytes.
+     */
+    abstract public int $size { get; }
 
-    private int $gid;
+    /**
+     * Full st_mode value: file type bits combined with permission bits.
+     */
+    public int $mode {
+        get => $this->type->value | $this->permissions;
+    }
 
-    private int $accessTime;
+    /**
+     * Permission bits, always masked to the valid 0o7777 range.
+     */
+    public protected(set) int $permissions {
+        set => $value & 0o7777;
+    }
 
-    private int $modificationTime;
+    public private(set) int $uid;
 
-    private int $changeTime;
+    public private(set) int $gid;
+
+    public private(set) int $accessTime;
+
+    public private(set) int $modificationTime;
+
+    public private(set) int $changeTime;
 
     public function __construct(int $permissions, int $uid, int $gid)
     {
         $this->inode       = self::$nextInode++;
-        $this->permissions = $permissions & 0o7777;
+        $this->permissions = $permissions;
         $this->uid         = $uid;
         $this->gid         = $gid;
 
@@ -41,70 +66,22 @@ abstract class Node
         $this->changeTime       = $now;
     }
 
-    /**
-     * File type bits for the st_mode field (S_IFREG, S_IFDIR or S_IFLNK).
-     */
-    abstract public function fileType(): int;
-
-    /**
-     * Apparent size of the node in bytes.
-     */
-    abstract public function size(): int;
-
-    /**
-     * Full st_mode value: file type bits combined with permission bits.
-     */
-    final public function mode(): int
-    {
-        return $this->fileType() | $this->permissions;
-    }
-
-    final public function permissions(): int
-    {
-        return $this->permissions;
-    }
-
     final public function chmod(int $permissions): void
     {
-        $this->permissions = $permissions & 0o7777;
+        $this->permissions = $permissions;
         $this->changeTime  = time();
-    }
-
-    final public function uid(): int
-    {
-        return $this->uid;
     }
 
     final public function chown(int $uid): void
     {
-        $this->uid       = $uid;
+        $this->uid        = $uid;
         $this->changeTime = time();
-    }
-
-    final public function gid(): int
-    {
-        return $this->gid;
     }
 
     final public function chgrp(int $gid): void
     {
         $this->gid        = $gid;
         $this->changeTime = time();
-    }
-
-    final public function accessTime(): int
-    {
-        return $this->accessTime;
-    }
-
-    final public function modificationTime(): int
-    {
-        return $this->modificationTime;
-    }
-
-    final public function changeTime(): int
-    {
-        return $this->changeTime;
     }
 
     /**
@@ -147,16 +124,11 @@ abstract class Node
 
     private function hasPermissionBit(int $uid, int $gid, int $ownerBit, int $groupBit, int $otherBit): bool
     {
-        if ($uid === 0) {
-            return true;
-        }
-        if ($uid === $this->uid) {
-            return ($this->permissions & $ownerBit) !== 0;
-        }
-        if ($gid === $this->gid) {
-            return ($this->permissions & $groupBit) !== 0;
-        }
-
-        return ($this->permissions & $otherBit) !== 0;
+        return match (true) {
+            $uid === 0          => true,
+            $uid === $this->uid => ($this->permissions & $ownerBit) !== 0,
+            $gid === $this->gid => ($this->permissions & $groupBit) !== 0,
+            default             => ($this->permissions & $otherBit) !== 0,
+        };
     }
 }
