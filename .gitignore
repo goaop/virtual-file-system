@@ -1,0 +1,7 @@
+/vendor/
+/composer.lock
+/.phpunit.cache/
+/phpunit.xml
+/phpstan.neon
+/.idea/
+/.vscode/
