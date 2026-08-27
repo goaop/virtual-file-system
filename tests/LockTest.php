@@ -72,6 +72,18 @@ final class LockTest extends VfsTestCase
         fclose($second);
     }
 
+    public function testLockSupportProbeSucceeds(): void
+    {
+        file_put_contents('vfs://probe.txt', 'x');
+        $handle = self::open('vfs://probe.txt', 'r+');
+
+        // Operation 0 is the internal probe PHP issues via stream_supports_lock()
+        // before honouring LOCK_EX in file_put_contents(); it must not be refused
+        self::assertTrue(stream_supports_lock($handle));
+
+        fclose($handle);
+    }
+
     public function testLockUpgradeAndDowngrade(): void
     {
         file_put_contents('vfs://updown.txt', 'x');

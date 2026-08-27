@@ -244,6 +244,9 @@ final class StreamWrapper
         $ownerId = spl_object_id($this);
 
         return match ($operation & ~LOCK_NB) {
+            // Operation 0 is PHP's internal probe for lock support, issued before
+            // honouring the LOCK_EX flag of file_put_contents() and friends
+            0 => true,
             LOCK_SH => $this->file->lockShared($ownerId),
             LOCK_EX => $this->file->lockExclusive($ownerId),
             LOCK_UN => $this->unlockFile($ownerId),

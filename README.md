@@ -213,15 +213,19 @@ to *every* VFS library, not just this one:
 
 - `glob()` — use `FilesystemIterator` with a wildcard filter instead
 - `realpath()` — returns `false`; paths are already normalized by the wrapper
-- `symlink()`, `link()`, `readlink()` — use `$fs->createSymlink()` and `$fs->find($path, false)?->target()`
+- `symlink()`, `link()`, `readlink()` — use `$fs->createSymlink()` and read the
+  `SymbolicLink::$target` property of the node returned by `$fs->find($path, false)`
 - `chdir()` / relative paths — always use full `vfs://…` URLs
 - `tempnam()` — falls back to the real temp dir; create files directly instead
 - `exec()` and other process-level functions — child processes cannot see PHP userland wrappers
+- `file_put_contents(..., LOCK_EX)` — PHP core rejects the `LOCK_EX` flag for any
+  non-`file://` URL before consulting the wrapper; use `fopen()` + `flock()` instead
+  (fully supported, and `stream_supports_lock()` reports `true`)
 
 ## Quality
 
 - **PHPStan level 10** (the maximum) across the whole codebase — src *and* tests
-- **141 tests / 400+ assertions** running with `error_reporting=-1` and PHPUnit
+- **142 tests / 400+ assertions** running with `error_reporting=-1` and PHPUnit
   configured to fail on any warning, notice or deprecation
 - Verified clean on **PHP 8.4, 8.5 and 8.6** on every push
 
