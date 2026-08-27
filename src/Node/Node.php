@@ -5,130 +5,67 @@ declare(strict_types=1);
 namespace Go\VirtualFileSystem\Node;
 
 /**
- * Base class for every inode of the virtual filesystem.
+ * A single inode of the virtual filesystem.
  *
- * Tracks POSIX-like metadata: a unique inode number, permission bits,
- * owner/group ids and access/modification/change timestamps. Metadata is
- * exposed as read-only properties (asymmetric visibility); mutations go
- * through the intention-revealing methods — chmod(), chown(), touch() —
- * which keep the change time honest.
+ * All POSIX metadata is exposed as first-class, engine-enforced property
+ * declarations (PHP 8.4 interface property hooks); mutations go through
+ * the intention-revealing methods which keep the change time honest.
  */
-abstract class Node
+interface Node
 {
-    private static int $nextInode = 1;
-
-    public readonly int $inode;
+    /**
+     * Unique inode number of this node.
+     */
+    public int $inode { get; }
 
     /**
      * POSIX file type of this node (S_IFREG, S_IFDIR or S_IFLNK).
      */
-    abstract public NodeType $type { get; }
+    public NodeType $type { get; }
 
     /**
      * Apparent size of the node in bytes.
      */
-    abstract public int $size { get; }
+    public int $size { get; }
 
     /**
      * Full st_mode value: file type bits combined with permission bits.
      */
-    public int $mode {
-        get => $this->type->value | $this->permissions;
-    }
+    public int $mode { get; }
 
     /**
-     * Permission bits, always masked to the valid 0o7777 range.
+     * Permission bits within the 0o7777 range.
      */
-    public protected(set) int $permissions {
-        set => $value & 0o7777;
-    }
+    public int $permissions { get; }
 
-    public private(set) int $uid;
+    public int $uid { get; }
 
-    public private(set) int $gid;
+    public int $gid { get; }
 
-    public private(set) int $accessTime;
+    public int $accessTime { get; }
 
-    public private(set) int $modificationTime;
+    public int $modificationTime { get; }
 
-    public private(set) int $changeTime;
+    public int $changeTime { get; }
 
-    public function __construct(int $permissions, int $uid, int $gid)
-    {
-        $this->inode       = self::$nextInode++;
-        $this->permissions = $permissions;
-        $this->uid         = $uid;
-        $this->gid         = $gid;
+    public function chmod(int $permissions): void;
 
-        $now                    = time();
-        $this->accessTime       = $now;
-        $this->modificationTime = $now;
-        $this->changeTime       = $now;
-    }
+    public function chown(int $uid): void;
 
-    final public function chmod(int $permissions): void
-    {
-        $this->permissions = $permissions;
-        $this->changeTime  = time();
-    }
-
-    final public function chown(int $uid): void
-    {
-        $this->uid        = $uid;
-        $this->changeTime = time();
-    }
-
-    final public function chgrp(int $gid): void
-    {
-        $this->gid        = $gid;
-        $this->changeTime = time();
-    }
+    public function chgrp(int $gid): void;
 
     /**
      * Implements touch(): updates times, creating-file semantics live in the wrapper.
      */
-    final public function touch(?int $modificationTime = null, ?int $accessTime = null): void
-    {
-        $now                    = time();
-        $this->modificationTime = $modificationTime ?? $now;
-        $this->accessTime       = $accessTime ?? $this->modificationTime;
-        $this->changeTime       = $now;
-    }
+    public function touch(?int $modificationTime = null, ?int $accessTime = null): void;
 
-    final public function markAccessed(): void
-    {
-        $this->accessTime = time();
-    }
+    public function markAccessed(): void;
 
-    final public function markModified(): void
-    {
-        $now                    = time();
-        $this->modificationTime = $now;
-        $this->changeTime       = $now;
-    }
+    public function markModified(): void;
 
-    final public function isReadableBy(int $uid, int $gid): bool
-    {
-        return $this->hasPermissionBit($uid, $gid, 0o400, 0o040, 0o004);
-    }
+    public function isReadableBy(int $uid, int $gid): bool;
 
-    final public function isWritableBy(int $uid, int $gid): bool
-    {
-        return $this->hasPermissionBit($uid, $gid, 0o200, 0o020, 0o002);
-    }
+    public function isWritableBy(int $uid, int $gid): bool;
 
-    final public function isExecutableBy(int $uid, int $gid): bool
-    {
-        return $this->hasPermissionBit($uid, $gid, 0o100, 0o010, 0o001);
-    }
-
-    private function hasPermissionBit(int $uid, int $gid, int $ownerBit, int $groupBit, int $otherBit): bool
-    {
-        return match (true) {
-            $uid === 0          => true,
-            $uid === $this->uid => ($this->permissions & $ownerBit) !== 0,
-            $gid === $this->gid => ($this->permissions & $groupBit) !== 0,
-            default             => ($this->permissions & $otherBit) !== 0,
-        };
-    }
+    public function isExecutableBy(int $uid, int $gid): bool;
 }

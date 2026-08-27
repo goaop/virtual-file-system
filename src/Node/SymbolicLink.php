@@ -10,7 +10,7 @@ namespace Go\VirtualFileSystem\Node;
  * The target may be absolute ("/etc/config") or relative to the
  * directory containing the link ("../config").
  */
-final class SymbolicLink extends Node
+final class SymbolicLink extends AbstractNode
 {
     public NodeType $type {
         get => NodeType::SymbolicLink;

@@ -7,6 +7,7 @@ namespace Go\VirtualFileSystem\Tests;
 use Go\VirtualFileSystem\Exception\OperationException;
 use Go\VirtualFileSystem\Node\Directory;
 use Go\VirtualFileSystem\Node\File;
+use Go\VirtualFileSystem\Node\Node;
 use Go\VirtualFileSystem\Node\SymbolicLink;
 
 final class ApiTest extends VfsTestCase
@@ -58,6 +59,7 @@ final class ApiTest extends VfsTestCase
         $this->fs->createFile('/d/f.txt', 'x');
         $this->fs->createSymlink('/d/l', '/d/f.txt');
 
+        self::assertInstanceOf(Node::class, $this->fs->find('/d'));
         self::assertInstanceOf(Directory::class, $this->fs->find('/d'));
         self::assertInstanceOf(File::class, $this->fs->find('/d/f.txt'));
         self::assertInstanceOf(SymbolicLink::class, $this->fs->find('/d/l', followFinalLink: false));

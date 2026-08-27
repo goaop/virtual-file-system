@@ -191,7 +191,7 @@ final class FileSystem
                 throw new OperationException(sprintf('Parent of "%s" does not exist (pass $recursive: true to create it)', $path));
             }
             $name     = Path::baseName($path);
-            $existing = $parent->child($name);
+            $existing = $parent->children[$name] ?? null;
             if ($existing instanceof Directory) {
                 return $existing;
             }
@@ -206,7 +206,7 @@ final class FileSystem
 
         $current = $this->root;
         foreach ($segments as $segment) {
-            $child = $current->child($segment);
+            $child = $current->children[$segment] ?? null;
             if ($child === null) {
                 $child = new Directory($permissions, $this->user, $this->group);
                 $current->addChild($segment, $child);
@@ -235,7 +235,7 @@ final class FileSystem
         if ($name === '') {
             throw new OperationException('Cannot create a file at the filesystem root path "/"');
         }
-        if ($parent->child($name) instanceof Directory) {
+        if (($parent->children[$name] ?? null) instanceof Directory) {
             throw new OperationException(sprintf('"%s" already exists and is a directory', $path));
         }
 
@@ -259,7 +259,7 @@ final class FileSystem
     {
         $parent = $this->createDirectory(Path::parent($path), recursive: true);
         $name   = Path::baseName($path);
-        if ($name === '' || $parent->hasChild($name)) {
+        if ($name === '' || isset($parent->children[$name])) {
             throw new OperationException(sprintf('Cannot create symbolic link: "%s" already exists', $path));
         }
 
@@ -297,7 +297,7 @@ final class FileSystem
             if (!$node instanceof Directory) {
                 return null;
             }
-            $child = $node->child($segment);
+            $child = $node->children[$segment] ?? null;
             if ($child === null) {
                 return null;
             }

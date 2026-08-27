@@ -506,7 +506,7 @@ final class StreamWrapper
         $walkedPath = '';
         foreach (Path::segments($virtualPath) as $segment) {
             $walkedPath .= '/' . $segment;
-            $child = $current->child($segment);
+            $child = $current->children[$segment] ?? null;
             if ($child === null) {
                 if (!$current->isWritableBy($fileSystem->user, $fileSystem->group)) {
                     $this->errorIf($reportErrors, 'mkdir(): Permission denied');
@@ -706,7 +706,7 @@ final class StreamWrapper
             return null;
         }
         $name = Path::baseName($virtualPath);
-        if ($name === '' || $parent->hasChild($name)) {
+        if ($name === '' || isset($parent->children[$name])) {
             $failureReason = 'File exists';
 
             return null;

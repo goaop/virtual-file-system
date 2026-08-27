@@ -7,7 +7,7 @@ namespace Go\VirtualFileSystem\Node;
 /**
  * Directory node: an ordered map of child names to nodes.
  */
-final class Directory extends Node
+final class Directory extends AbstractNode
 {
     public NodeType $type {
         get => NodeType::Directory;
@@ -31,16 +31,6 @@ final class Directory extends Node
      */
     public int $linkCount {
         get => 2 + count(array_filter($this->children, static fn (Node $child): bool => $child instanceof self));
-    }
-
-    public function child(string $name): ?Node
-    {
-        return $this->children[$name] ?? null;
-    }
-
-    public function hasChild(string $name): bool
-    {
-        return isset($this->children[$name]);
     }
 
     public function addChild(string $name, Node $node): void

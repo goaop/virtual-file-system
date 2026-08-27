@@ -12,7 +12,7 @@ namespace Go\VirtualFileSystem\Node;
  * filesystem gives for a shared inode. The set hook on $content keeps
  * the modification time up to date on every write, wherever it comes from.
  */
-final class File extends Node
+final class File extends AbstractNode
 {
     public NodeType $type {
         get => NodeType::File;

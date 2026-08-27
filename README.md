@@ -180,8 +180,9 @@ FileSystem::unmountAll();
 | `$fs->quota = $bytes` / `$fs->usedSpace` / `$fs->availableSpace` | Disk-space simulation (`-1` = unlimited) |
 | `$fs->user = $uid` / `$fs->group = $gid` | Identity used for permission checks |
 
-Nodes (`File`, `Directory`, `SymbolicLink`) expose their metadata as typed
-properties — `$size`, `$mode`, `$permissions`, `$uid`, `$gid`, `$type`,
+Nodes (`File`, `Directory`, `SymbolicLink` — all implementing the `Node`
+interface, whose metadata surface is declared as interface property hooks)
+expose their metadata as typed properties — `$size`, `$mode`, `$permissions`, `$uid`, `$gid`, `$type`,
 `$content`, `$children`, `$target` — plus intention-revealing methods
 (`chmod()`, `chown()`, `chgrp()`, `touch()`) for direct fixture surgery.
 
@@ -192,7 +193,9 @@ The codebase is a showcase of PHP 8.4+ done right:
 - **Property hooks** — `File::$content` keeps `mtime` honest on every
   assignment; `FileSystem::$quota` validates itself; `$usedSpace`,
   `$availableSpace`, `$mode` and `$size` are computed, virtual properties
-- **Abstract hooked properties** — `Node` declares `abstract public NodeType $type { get; }`
+- **Interface property declarations** — the `Node` interface declares its whole
+  metadata surface as hooked properties (`public NodeType $type { get; }`,
+  `public int $size { get; }`, …) — no getter methods anywhere
 - **Asymmetric visibility** — metadata reads like `$node->uid` are public
   while writes stay guarded (`public private(set)`)
 - **Readonly classes & promoted constructors** — the fopen mode parser is an
